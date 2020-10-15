@@ -1,12 +1,14 @@
 <?php
+
 /**
  * CSV Component
  *
  * @author Dean Sofer (proloser@hotmail.com)
  * @version 1.0
  * @package CSV Plugin
- **/
+ * */
 App::uses('Component', 'Controller');
+
 class CsvComponent extends Component {
 
 	/**
@@ -39,7 +41,7 @@ class CsvComponent extends Component {
 	 * @access protected
 	 */
 	protected function _encode($str = '') {
-		return iconv("UTF-8","UTF-8//TRANSLIT", html_entity_decode($str, ENT_COMPAT, 'utf-8'));
+		return iconv("UTF-8", "UTF-8//TRANSLIT", html_entity_decode($str, ENT_COMPAT, 'utf-8'));
 	}
 
 	/**
@@ -66,8 +68,8 @@ class CsvComponent extends Component {
 				// for each header field
 				foreach ($fields as $f => $field) {
 					// get the data field from Model.field
-					if (strpos($field,'.')) {
-						$keys = explode('.',$field);
+					if (strpos($field, '.')) {
+						$keys = explode('.', $field);
 						if (isset($keys[2])) {
 							$data[$r][$keys[0]][$keys[1]][$keys[2]] = $row[$f];
 						} else {
@@ -135,11 +137,54 @@ class CsvComponent extends Component {
 
 			// close the file
 			fclose($file);
-
 			return $r;
 		} else {
 			return false;
 		}
 	}
+
+	/**
+	 * Converts a data array into a CSV formatted variable
+	 *
+	 * @param string $data
+	 * @return string $result
+	 * @author Ian van den Heuvel
+	 */
+	public function generate($data, $options = array()) {
+		$options = array_merge($this->defaults, $options);
+		$firstRecord = true;
+		foreach ($data as $record) {
+			$row = array();
+			foreach ($record as $field => $value) {
+				if (!is_array($value)) {
+					if ($firstRecord) {
+						$headers[] = $this->_encode($field);
+					}
+					$row[] = $this->_encode($value);
+				}
+			}
+			$rows[] = $row;
+			$firstRecord = false;
+		}
+		$result = '';
+		if ($options['headers']) {
+			$result .= str_putcsv($headers, $options['delimiter'], $options['enclosure']) . "\n";
+		}
+		foreach ($rows as $row) {
+			$result .= str_putcsv($row, $options['delimiter'], $options['enclosure']) . "\n";
+		}
+		return $result;
+	}
+
 }
-?>
+
+if (!function_exists('str_putcsv')) {
+	function str_putcsv($input, $delimiter = ',', $enclosure = '"') {
+		$fp = fopen('php://temp', 'r+');
+		fputcsv($fp, $input, $delimiter, $enclosure);
+		rewind($fp);
+		$data = fread($fp, 1048576);
+		fclose($fp);
+		return rtrim($data, "\n");
+	}
+}
